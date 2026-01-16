@@ -11,6 +11,7 @@ APP_DIR="$HOME/app_volumes/$APP_NAME"
 SERVICE_DIR="$PREFIX/var/service/$APP_NAME"
 BIN_DIR="$PREFIX/bin"
 VENV_DIR="$APP_DIR/venv"
+PYTHON_VENV="$VENV_DIR/bin/python"
 
 ### 1️⃣ Check Termux
 if [ -z "$PREFIX" ]; then
@@ -42,17 +43,24 @@ else
   git clone "$REPO_URL" "$APP_DIR"
 fi
 
-### 6️⃣ Create Python virtual environment
-echo "🐍 Setting up Python virtual environment..."
+### 6️⃣ Create Python virtual environment (clean)
+echo "🐍 Creating Python virtual environment..."
+rm -rf "$VENV_DIR"
 python -m venv "$VENV_DIR"
-source "$VENV_DIR/bin/activate"
 
-### 7️⃣ Install Python packages inside venv
-echo "📦 Installing Python packages (Flask)..."
-pip install --upgrade pip setuptools wheel || true  # upgrade only inside venv, safe
-pip install flask
+### 7️⃣ Install Flask inside venv (STRICT)
+echo "📦 Installing Flask..."
+"$PYTHON_VENV" -m pip install --upgrade pip setuptools wheel
+"$PYTHON_VENV" -m pip install flask
 
-### 8️⃣ mp3 helper
+### 8️⃣ Verify Flask install
+echo "🔍 Verifying Flask installation..."
+"$PYTHON_VENV" - <<'EOF'
+import flask
+print("Flask version:", flask.__version__)
+EOF
+
+### 9️⃣ mp3 helper
 echo "🎵 Installing mp3 helper..."
 cat > "$BIN_DIR/mp3" <<'EOF'
 #!/data/data/com.termux/files/usr/bin/bash
@@ -66,7 +74,7 @@ yt-dlp -x --audio-format mp3 \
 EOF
 chmod +x "$BIN_DIR/mp3"
 
-### 9️⃣ mp4 helper
+### 🔟 mp4 helper
 echo "🎬 Installing mp4 helper..."
 cat > "$BIN_DIR/mp4" <<'EOF'
 #!/data/data/com.termux/files/usr/bin/bash
@@ -79,29 +87,30 @@ yt-dlp -f "$QUALITY" \
 EOF
 chmod +x "$BIN_DIR/mp4"
 
-### 🔟 Create runit service
+### 1️⃣1️⃣ Create runit service (NO source)
 echo "⚙️ Creating runit service..."
 mkdir -p "$SERVICE_DIR"
 
 cat > "$SERVICE_DIR/run" <<EOF
 #!/data/data/com.termux/files/usr/bin/sh
 cd $APP_DIR
-source $VENV_DIR/bin/activate
-exec python app.py
+exec $PYTHON_VENV app.py
 EOF
 
 chmod +x "$SERVICE_DIR/run"
 
-### 1️⃣1️⃣ Enable and start service
-echo "▶️ Enabling service..."
+### 1️⃣2️⃣ Enable & start service
+echo "▶️ Starting service..."
 sv-enable "$APP_NAME" || true
-sv up "$APP_NAME" || true
+sv restart "$APP_NAME" || sv up "$APP_NAME"
 
 ### ✅ Done
 echo ""
-echo "✅ Installation complete!"
-echo "🌐 App is running on: http://localhost:8000 (or port defined in app.py)"
-echo "🔁 Control service:"
-echo "   sv up $APP_NAME"
-echo "   sv down $APP_NAME"
-echo "   sv status $APP_NAME"
+echo "✅ Installation successful!"
+echo "🌐 App running (check app.py port)"
+echo "📍 Service path: $SERVICE_DIR"
+echo ""
+echo "Service commands:"
+echo "  sv status $APP_NAME"
+echo "  sv restart $APP_NAME"
+echo "  sv down $APP_NAME"
