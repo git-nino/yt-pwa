@@ -1,5 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -e
+set -o pipefail
 
 echo "🚀 Installing YT-PWA on Termux..."
 
@@ -9,6 +10,7 @@ REPO_URL="https://github.com/git-nino/yt-pwa.git"
 APP_DIR="$HOME/app_volumes/$APP_NAME"
 SERVICE_DIR="$PREFIX/var/service/$APP_NAME"
 BIN_DIR="$PREFIX/bin"
+VENV_DIR="$APP_DIR/venv"
 
 ### 1️⃣ Check Termux
 if [ -z "$PREFIX" ]; then
@@ -27,19 +29,9 @@ pkg upgrade -y
 
 ### 4️⃣ Install dependencies
 echo "📦 Installing dependencies..."
-pkg install -y \
-  python \
-  git \
-  ffmpeg \
-  yt-dlp \
-  runit
+pkg install -y python git ffmpeg yt-dlp runit
 
-### 5️⃣ Python deps
-echo "🐍 Installing Python packages..."
-pip install --upgrade pip
-pip install flask
-
-### 6️⃣ Clone or update repo
+### 5️⃣ Clone or update repo
 echo "📥 Deploying application..."
 mkdir -p "$HOME/app_volumes"
 
@@ -50,7 +42,17 @@ else
   git clone "$REPO_URL" "$APP_DIR"
 fi
 
-### 7️⃣ mp3 helper
+### 6️⃣ Create Python virtual environment
+echo "🐍 Setting up Python virtual environment..."
+python -m venv "$VENV_DIR"
+source "$VENV_DIR/bin/activate"
+
+### 7️⃣ Install Python packages inside venv
+echo "📦 Installing Python packages (Flask)..."
+pip install --upgrade pip setuptools wheel || true  # upgrade only inside venv, safe
+pip install flask
+
+### 8️⃣ mp3 helper
 echo "🎵 Installing mp3 helper..."
 cat > "$BIN_DIR/mp3" <<'EOF'
 #!/data/data/com.termux/files/usr/bin/bash
@@ -64,7 +66,7 @@ yt-dlp -x --audio-format mp3 \
 EOF
 chmod +x "$BIN_DIR/mp3"
 
-### 8️⃣ mp4 helper
+### 9️⃣ mp4 helper
 echo "🎬 Installing mp4 helper..."
 cat > "$BIN_DIR/mp4" <<'EOF'
 #!/data/data/com.termux/files/usr/bin/bash
@@ -77,22 +79,23 @@ yt-dlp -f "$QUALITY" \
 EOF
 chmod +x "$BIN_DIR/mp4"
 
-### 9️⃣ Create service
+### 🔟 Create runit service
 echo "⚙️ Creating runit service..."
 mkdir -p "$SERVICE_DIR"
 
 cat > "$SERVICE_DIR/run" <<EOF
 #!/data/data/com.termux/files/usr/bin/sh
 cd $APP_DIR
+source $VENV_DIR/bin/activate
 exec python app.py
 EOF
 
 chmod +x "$SERVICE_DIR/run"
 
-### 🔟 Enable service
+### 1️⃣1️⃣ Enable and start service
 echo "▶️ Enabling service..."
-sv-enable "$APP_NAME"
-sv up "$APP_NAME"
+sv-enable "$APP_NAME" || true
+sv up "$APP_NAME" || true
 
 ### ✅ Done
 echo ""
