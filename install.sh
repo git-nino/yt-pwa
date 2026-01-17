@@ -28,7 +28,7 @@ termux-setup-storage >/dev/null 2>&1 || true
 echo "🔄 Updating packages..."
 pkg update -y && pkg upgrade -y
 
-### 4️⃣ Install required packages (IMPORTANT)
+### 4️⃣ Install required packages
 echo "📦 Installing dependencies..."
 pkg install -y \
   python \
@@ -115,7 +115,7 @@ EOF
 
 chmod +x "$SERVICE_DIR/run"
 
-### 1️⃣2️⃣ Enable service IF runsvdir is already active
+### 1️⃣2️⃣ Enable service IF runsvdir is active
 if [[ -d "$RUNSVDIR" && -x "$PREFIX/bin/sv-enable" ]]; then
   echo "🔁 Enabling service..."
   sv-enable "$APP_NAME" || true
@@ -129,9 +129,9 @@ fi
 echo ""
 echo "✅ Installation completed successfully!"
 echo ""
-echo "📌 NEXT STEP (automatic):"
-echo "Termux will now close."
-echo "👉 Reopen Termux and your service will start automatically."
+echo "📌 NEXT STEP:"
+echo "⚠️ Please close Termux completely (swipe away) and reopen it."
+echo "👉 After reopening, the service will start automatically."
 echo ""
 echo "📥 Commands available after restart:"
 echo "   sv status $APP_NAME"
@@ -139,5 +139,8 @@ echo "   mp3 <url> [quality]"
 echo "   mp4 <url> [format]"
 echo ""
 
-sleep 3
+# Close current shell session cleanly
+exec 0<&-
+exec 1>&-
+exec 2>&-
 exit 0
