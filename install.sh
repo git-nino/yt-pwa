@@ -12,7 +12,7 @@ VENV_DIR="$APP_DIR/venv"
 PYTHON="$VENV_DIR/bin/python"
 BIN_DIR="$PREFIX/bin"
 SERVICE_DIR="$PREFIX/var/service/$APP_NAME"
-RUNSV_DIR="$PREFIX/var/run/service"
+RUNSVDIR="$PREFIX/var/run/service"
 
 ### 1️⃣ Verify Termux environment
 if [[ -z "${PREFIX:-}" || ! -d "$PREFIX" ]]; then
@@ -33,7 +33,7 @@ echo "📦 Installing dependencies..."
 pkg install -y \
   python \
   git \
-  yt-dlp \
+  python-yt-dlp \
   ffmpeg \
   termux-services
 
@@ -115,31 +115,29 @@ EOF
 
 chmod +x "$SERVICE_DIR/run"
 
-### 1️⃣2️⃣ Enable & start service (if possible)
-if [[ -d "$RUNSV_DIR" ]]; then
-  echo "🔌 Enabling service..."
+### 1️⃣2️⃣ Enable service IF runsvdir is already active
+if [[ -d "$RUNSVDIR" && -x "$PREFIX/bin/sv-enable" ]]; then
+  echo "🔁 Enabling service..."
   sv-enable "$APP_NAME" || true
-
-  echo "▶️ Starting service..."
   sv up "$APP_NAME" || true
-
-  echo "📊 Service status:"
-  sv status "$APP_NAME" || true
+  echo "✅ Service started"
 else
-  echo ""
-  echo "⚠️ Termux services are not running yet."
-  echo "➡️ Please restart Termux, then run:"
-  echo "   sv-enable $APP_NAME"
-  echo "   sv up $APP_NAME"
+  echo "ℹ️ Services not active yet (Termux restart required)"
 fi
 
 ### ✅ Done
 echo ""
 echo "✅ Installation completed successfully!"
 echo ""
-echo "🌐 Manual start (no service):"
-echo "   cd $APP_DIR && $PYTHON app.py"
+echo "📌 NEXT STEP (automatic):"
+echo "Termux will now close."
+echo "👉 Reopen Termux and your service will start automatically."
 echo ""
-echo "📥 Download helpers:"
+echo "📥 Commands available after restart:"
+echo "   sv status $APP_NAME"
 echo "   mp3 <url> [quality]"
 echo "   mp4 <url> [format]"
+echo ""
+
+sleep 3
+exit 0
