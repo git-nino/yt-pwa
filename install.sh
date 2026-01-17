@@ -12,6 +12,7 @@ VENV_DIR="$APP_DIR/venv"
 PYTHON="$VENV_DIR/bin/python"
 BIN_DIR="$PREFIX/bin"
 SERVICE_DIR="$PREFIX/var/service/$APP_NAME"
+RUNSV_DIR="$PREFIX/var/run/service"
 
 ### 1️⃣ Verify Termux environment
 if [[ -z "${PREFIX:-}" || ! -d "$PREFIX" ]]; then
@@ -27,14 +28,14 @@ termux-setup-storage >/dev/null 2>&1 || true
 echo "🔄 Updating packages..."
 pkg update -y && pkg upgrade -y
 
-### 4️⃣ Install required packages
+### 4️⃣ Install required packages (IMPORTANT)
 echo "📦 Installing dependencies..."
 pkg install -y \
   python \
   git \
   yt-dlp \
   ffmpeg \
-  runit
+  termux-services
 
 ### 5️⃣ Clone or update app
 echo "📥 Deploying application..."
@@ -66,8 +67,8 @@ fi
 ### 8️⃣ Verify tools
 echo "🔍 Verifying installation..."
 "$PYTHON" - <<'EOF'
-import flask
-print("Flask OK:", flask.__version__)
+import importlib.metadata
+print("Flask OK:", importlib.metadata.version("flask"))
 EOF
 
 yt-dlp --version >/dev/null
@@ -102,34 +103,39 @@ yt-dlp -f "$QUALITY" \
 EOF
 chmod +x "$BIN_DIR/mp4"
 
-### 1️⃣1️⃣ Create runit service (DO NOT start yet)
-if command -v sv >/dev/null 2>&1; then
-  echo "⚙️ Creating runit service..."
+### 1️⃣1️⃣ Create runit service
+echo "⚙️ Creating runit service..."
+mkdir -p "$SERVICE_DIR"
 
-  mkdir -p "$SERVICE_DIR"
-
-  cat > "$SERVICE_DIR/run" <<EOF
+cat > "$SERVICE_DIR/run" <<EOF
 #!/data/data/com.termux/files/usr/bin/sh
 cd "$APP_DIR"
 exec "$PYTHON" app.py
 EOF
 
-  chmod +x "$SERVICE_DIR/run"
+chmod +x "$SERVICE_DIR/run"
 
-  echo "ℹ️ Service '$APP_NAME' created successfully"
+### 1️⃣2️⃣ Enable & start service (if possible)
+if [[ -d "$RUNSV_DIR" ]]; then
+  echo "🔌 Enabling service..."
+  sv-enable "$APP_NAME" || true
+
+  echo "▶️ Starting service..."
+  sv up "$APP_NAME" || true
+
+  echo "📊 Service status:"
+  sv status "$APP_NAME" || true
 else
-  echo "⚠️ runit not available, skipping service setup"
+  echo ""
+  echo "⚠️ Termux services are not running yet."
+  echo "➡️ Please restart Termux, then run:"
+  echo "   sv-enable $APP_NAME"
+  echo "   sv up $APP_NAME"
 fi
 
 ### ✅ Done
 echo ""
 echo "✅ Installation completed successfully!"
-echo ""
-echo "⚠️ IMPORTANT:"
-echo "You MUST restart Termux before using 'sv' commands."
-echo ""
-echo "📌 After restarting Termux, run:"
-echo "   sv up $APP_NAME"
 echo ""
 echo "🌐 Manual start (no service):"
 echo "   cd $APP_DIR && $PYTHON app.py"
