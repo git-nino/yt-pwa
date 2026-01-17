@@ -102,9 +102,10 @@ yt-dlp -f "$QUALITY" \
 EOF
 chmod +x "$BIN_DIR/mp4"
 
-### 1️⃣1️⃣ Optional runit service
+### 1️⃣1️⃣ Create runit service (DO NOT start yet)
 if command -v sv >/dev/null 2>&1; then
   echo "⚙️ Creating runit service..."
+
   mkdir -p "$SERVICE_DIR"
 
   cat > "$SERVICE_DIR/run" <<EOF
@@ -115,7 +116,7 @@ EOF
 
   chmod +x "$SERVICE_DIR/run"
 
-  sv restart "$APP_NAME" 2>/dev/null || sv up "$APP_NAME"
+  echo "ℹ️ Service '$APP_NAME' created successfully"
 else
   echo "⚠️ runit not available, skipping service setup"
 fi
@@ -123,7 +124,14 @@ fi
 ### ✅ Done
 echo ""
 echo "✅ Installation completed successfully!"
-echo "🌐 Start manually with:"
+echo ""
+echo "⚠️ IMPORTANT:"
+echo "You MUST restart Termux before using 'sv' commands."
+echo ""
+echo "📌 After restarting Termux, run:"
+echo "   sv up $APP_NAME"
+echo ""
+echo "🌐 Manual start (no service):"
 echo "   cd $APP_DIR && $PYTHON app.py"
 echo ""
 echo "📥 Download helpers:"
